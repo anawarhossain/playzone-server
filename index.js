@@ -20,6 +20,7 @@ const client = new MongoClient(uri, {
   },
 });
 
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -100,6 +101,71 @@ async function run() {
         }
 
         res.send(result);
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    // 9
+    // ✅ PUT /facilities/:id — facility আপডেট (Edit)
+    app.put("/facilities/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        if (!ObjectId.isValid(id))
+          return res
+            .status(400)
+            .send({ success: false, message: "Invalid ID" });
+
+        const { _id, createdAt, ownerEmail, ...updateData } = req.body; // immutable fields বাদ
+
+        const result = await facilitieCollections.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { ...updateData, updatedAt: new Date() } },
+        );
+
+        if (result.matchedCount === 0)
+          return res
+            .status(404)
+            .send({ success: false, message: "Facility not found" });
+
+        res.send({ success: true, message: "Facility updated successfully" });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    // 8
+    // ✅ DELETE /facilities/:id — facility মুছে ফেলা
+    app.delete("/facilities/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        if (!ObjectId.isValid(id))
+          return res
+            .status(400)
+            .send({ success: false, message: "Invalid ID" });
+
+        // সেই facility-র সব booking আছে কিনা দেখা
+        const activeBookings = await bookingCollection.countDocuments({
+          facilityId: id,
+          status: { $in: ["Pending", "Confirmed"] },
+        });
+
+        if (activeBookings > 0)
+          return res.status(400).send({
+            success: false,
+            message: `Cannot delete: ${activeBookings} active booking(s) exist for this facility.`,
+          });
+
+        const result = await facilitieCollections.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        if (result.deletedCount === 0)
+          return res
+            .status(404)
+            .send({ success: false, message: "Facility not found" });
+
+        res.send({ success: true, message: "Facility deleted successfully" });
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
       }
