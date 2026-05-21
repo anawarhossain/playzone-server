@@ -199,7 +199,41 @@ async function run() {
       }
     });
 
-    
+    // 7. বুকিং Status আপডেট করা (PATCH) - Admin এর জন্য
+    app.patch("/booking/:id/status", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { status } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+          return res
+            .status(400)
+            .send({ success: false, message: "Invalid ID" });
+        }
+
+        const validStatuses = ["Pending", "Confirmed", "Cancelled"];
+        if (!validStatuses.includes(status)) {
+          return res
+            .status(400)
+            .send({ success: false, message: "Invalid status value" });
+        }
+
+        const result = await bookingCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status, updatedAt: new Date() } },
+        );
+
+        if (result.matchedCount === 0) {
+          return res
+            .status(404)
+            .send({ success: false, message: "Booking not found" });
+        }
+
+        res.send({ success: true, message: "Status updated successfully" });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
