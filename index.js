@@ -157,6 +157,48 @@ async function run() {
       }
     });
 
+    // 6. বুকিং Cancel করা (DELETE)
+    app.delete("/booking/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        if (!ObjectId.isValid(id)) {
+          return res
+            .status(400)
+            .send({ success: false, message: "Invalid ID" });
+        }
+
+        // শুধুমাত্র Pending বুকিং cancel করা যাবে
+        const booking = await bookingCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!booking) {
+          return res
+            .status(404)
+            .send({ success: false, message: "Booking not found" });
+        }
+
+        if (booking.status === "Confirmed") {
+          return res.status(400).send({
+            success: false,
+            message:
+              "Confirmed booking cannot be cancelled. Please contact support.",
+          });
+        }
+
+        // Status "Cancelled" করে আপডেট করা (delete না করে - history রাখার জন্য)
+        const result = await bookingCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: "Cancelled", cancelledAt: new Date() } },
+        );
+
+        res.send({ success: true, message: "Booking cancelled successfully" });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
     
 
     // Send a ping to confirm a successful connection
