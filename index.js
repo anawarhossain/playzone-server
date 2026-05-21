@@ -125,7 +125,7 @@ async function run() {
 
         const result = await bookingCollection.insertOne({
           ...bookingData,
-          status: "pending", // ডিফল্ট স্ট্যাটাস
+          status: "Pending", // ডিফল্ট স্ট্যাটাস
           bookedAt: new Date(),
         });
 
@@ -134,6 +134,30 @@ async function run() {
         res.status(500).send({ success: false, message: error.message });
       }
     });
+
+    // 5
+    app.get("/booking", async (req, res) => {
+      try {
+        const { email, status } = req.query;
+        let query = {};
+
+        if (email) query.userEmail = email; // শুধুমাত্র লগইন করা ইউজারের ডাটা আসবে
+        if (status && status !== "All") {
+          // case-insensitive query
+          query.status = { $regex: new RegExp(`^${status}$`, "i") };
+        }
+
+        const result = await bookingCollection
+          .find(query)
+          .sort({ bookedAt: -1 })
+          .toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
