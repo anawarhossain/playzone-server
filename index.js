@@ -1,7 +1,10 @@
 const express = require("express");
-require("dotenv").config();
+const dontenv = require("dotenv");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
+dontenv.config();
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -9,6 +12,17 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.BETTER_AUTH_URL}/api/auth/jwks`),
+);
+
+const verifyToken = (req, res, next) => {
+  const authHeader = req?.headers.authorization;
+  console.log(authHeader);
+
+  next();
+};
 
 const uri = process.env.MONGODB_CONNECTION_URL;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -171,7 +185,7 @@ async function run() {
     });
 
     // 4
-    app.post("/booking", async (req, res) => {
+    app.post("/booking", verifyToken, async (req, res) => {
       try {
         const bookingData = req.body;
 
