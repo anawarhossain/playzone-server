@@ -14,14 +14,43 @@ app.use(cors());
 app.use(express.json());
 
 const JWKS = createRemoteJWKSet(
-  new URL(`${process.env.BETTER_AUTH_URL}/api/auth/jwks`),
+  new URL(`${process.env.CLIENT_SITE_URL}/api/auth/jwks`),
 );
 
-const verifyToken = (req, res, next) => {
-  const authHeader = req?.headers.authorization;
-  console.log(authHeader);
+const verifyToken = async (req, res, next) => {
+  try {
+    // ১. ছোট হাতের 'authorization' দিয়ে হেডার 
+    const authHeader = req.headers.authorization;
 
-  next();
+    if (!authHeader) {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message: "Unauthorized access: Missing token",
+        });
+    }
+
+    // ২. 'Bearer <token>' থেকে মূল টোকেনটি আলাদা 
+    const token = authHeader.split(" ")[1];
+
+    // ৩. Better-Auth JWKS ব্যবহার করে JWT ভেরিফাই 
+    const { payload } = await jwtVerify(token, JWKS);
+
+    // ৪. ভেরিফাইড ইউজারের ডাটা রিকোয়েস্ট অবজেক্টে রেখে দিলাম (ভবিষ্যতে ব্যবহারের জন্য)
+    req.user = payload;
+
+    next(); // টোকেন ঠিক থাকলে পরের ধাপে যাবে
+    
+  } catch (error) {
+    console.error("JWT Verification Error:", error.message);
+    return res
+      .status(403)
+      .json({
+        success: false,
+        message: "Forbidden access: Invalid or expired token",
+      });
+  }
 };
 
 const uri = process.env.MONGODB_CONNECTION_URL;
